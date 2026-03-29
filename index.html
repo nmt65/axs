@@ -3,867 +3,723 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="description" content="AXS - Platformă inteligentă de accesibilitate pentru toți">
   <title>AXS All-In-One — Accessibility Ecosystem</title>
-  <!-- Leaflet CSS -->
+  <!-- Leaflet + Routing -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
   <!-- TensorFlow.js + COCO-SSD -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
-  <!-- Tesseract.js OCR -->
+  <!-- Tesseract OCR -->
   <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
-  <!-- Leaflet JS -->
+  <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
   <style>
-    /* ========== RESET & VARIABLES ========== */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { height: 100%; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0a0a0f;
-      color: #e8eaf0;
-      height: 100%;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #0a0c12;
+      color: #edf2f8;
+      height: 100vh;
       overflow: hidden;
     }
+
     :root {
-      --bg: #0a0a0f;
-      --surface: #12141c;
-      --card: #1a1d28;
-      --card2: #1e2232;
-      --border: rgba(255,255,255,0.07);
-      --border2: rgba(255,255,255,0.12);
-      --text: #e8eaf0;
-      --muted: #6b7190;
-      --accent: #4a8fff;
-      --green: #2ee89a;
-      --amber: #f5a623;
-      --red: #ff5555;
-      --purple: #9b6bff;
-      --teal: #2ec4b6;
-      --deaf: #9b6bff;
-      --wheelchair: #4a8fff;
-      --blind: #2ee89a;
-      --nd: #f5a623;
+      --bg-dark: #0a0c12;
+      --surface: #11141c;
+      --card: #161c27;
+      --card-hover: #1e2635;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-light: rgba(255, 255, 255, 0.1);
+      --text: #eef2ff;
+      --text-muted: #8a99b4;
+      --accent: #3b82f6;
+      --accent-glow: #3b82f6cc;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --purple: #8b5cf6;
+      --teal: #14b8a6;
+      --deaf: #c084fc;
+      --wheelchair: #60a5fa;
+      --blind: #34d399;
+      --nd: #fbbf24;
     }
-    #app { display: flex; height: 100vh; overflow: hidden; }
 
-    /* ========== SIDEBAR ========== */
+    #app {
+      display: flex;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    /* Sidebar rafinată */
     .sidebar {
-      width: 64px; min-width: 64px; background: var(--surface);
-      border-right: 1px solid var(--border); display: flex; flex-direction: column;
-      align-items: center; padding: 16px 0; gap: 4px; z-index: 100;
-      transition: width 0.3s cubic-bezier(.4,0,.2,1); overflow: hidden;
+      width: 72px;
+      background: var(--surface);
+      backdrop-filter: blur(4px);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 0;
+      gap: 8px;
+      transition: width 0.25s ease;
+      z-index: 30;
+      overflow-x: hidden;
     }
-    .sidebar.expanded { width: 220px; align-items: flex-start; }
-    .sidebar-logo-wrap { display: flex; align-items: center; gap: 10px; padding: 0 12px; margin-bottom: 8px; width: 100%; }
-    .sidebar-logo { width: 40px; height: 40px; background: linear-gradient(135deg, var(--accent), var(--purple)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; margin: 0 12px 8px; }
-    .sidebar-logo-text { font-size: 16px; font-weight: 800; white-space: nowrap; opacity: 0; transition: opacity 0.2s; }
-    .sidebar.expanded .sidebar-logo-text { opacity: 1; }
-    .nav-btn-wrap {
-      display: flex; align-items: center; gap: 10px; width: 100%; padding: 0 12px;
-      height: 44px; cursor: pointer; border-radius: 10px; transition: all 0.15s;
-      color: var(--muted);
+
+    .sidebar.expanded {
+      width: 240px;
+      align-items: flex-start;
     }
-    .nav-btn-wrap:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-    .nav-btn-wrap.active { background: rgba(74,143,255,0.12); color: var(--accent); }
-    .nav-icon { font-size: 20px; flex-shrink: 0; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; }
-    .nav-label { font-size: 13px; font-weight: 600; white-space: nowrap; opacity: 0; transition: opacity 0.2s; }
-    .sidebar.expanded .nav-label { opacity: 1; }
-    .sidebar-toggle { margin-top: auto; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; color: var(--muted); margin-left: 12px; margin-right: 12px; transition: all 0.15s; }
-    .sidebar-toggle:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 
-    /* ========== MAIN VIEWS ========== */
-    .main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-    .view { display: none; flex: 1; overflow: hidden; animation: fadeIn 0.25s ease; }
-    .view.active { display: flex; flex-direction: column; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      margin-bottom: 24px;
+      width: 100%;
+    }
 
-    .topbar { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-shrink: 0; background: var(--surface); }
-    .topbar-title { font-size: 20px; font-weight: 800; }
-    .topbar-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .topbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-    .badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid var(--border2); }
-    .badge-green { background: rgba(46,232,154,0.1); color: var(--green); border-color: rgba(46,232,154,0.25); }
-    .badge-blue { background: rgba(74,143,255,0.1); color: var(--accent); border-color: rgba(74,143,255,0.25); }
-    .badge-amber { background: rgba(245,166,35,0.1); color: var(--amber); border-color: rgba(245,166,35,0.25); }
-    .badge-purple { background: rgba(155,107,255,0.1); color: var(--purple); border-color: rgba(155,107,255,0.25); }
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
 
-    .scroll-content { flex: 1; overflow-y: auto; padding: 20px 24px; }
-    .scroll-content::-webkit-scrollbar { width: 4px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
-    .card2 { background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-    .grid { display: grid; gap: 16px; }
-    .grid-2 { grid-template-columns: 1fr 1fr; }
-    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-    .grid-4 { grid-template-columns: repeat(4,1fr); }
+    .logo-text {
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
 
-    .btn { padding: 10px 18px; border-radius: 10px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; outline: none; }
-    .btn:active { transform: scale(0.96); }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-primary:hover { background: #3d7aee; }
-    .btn-ghost { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--border2); }
-    .btn-ghost:hover { background: rgba(255,255,255,0.1); }
-    .btn-danger { background: rgba(255,85,85,0.15); color: var(--red); border: 1px solid rgba(255,85,85,0.3); }
-    .btn-green { background: rgba(46,232,154,0.15); color: var(--green); border: 1px solid rgba(46,232,154,0.3); }
-    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .sidebar.expanded .logo-text {
+      opacity: 1;
+    }
 
-    .progress-wrap { background: rgba(255,255,255,0.07); border-radius: 4px; height: 6px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.2s; }
-    .stat-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
-    .stat-row:last-child { border-bottom: none; }
-    .stat-label { font-size: 13px; color: var(--muted); }
-    .stat-val { font-size: 14px; font-weight: 700; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 10px 16px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .nav-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent);
+    }
+
+    .nav-icon {
+      font-size: 22px;
+      width: 32px;
+      text-align: center;
+    }
+
+    .nav-label {
+      font-size: 14px;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .sidebar.expanded .nav-label {
+      opacity: 1;
+    }
+
+    .sidebar-toggle {
+      margin-top: auto;
+      margin-bottom: 16px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+
+    .sidebar-toggle:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+    }
+
+    /* Main content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .view {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      overflow-y: auto;
+      animation: fade 0.2s ease;
+    }
+
+    .view.active {
+      display: flex;
+    }
+
+    @keyframes fade {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .top-bar {
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fff, var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .badge {
+      padding: 5px 12px;
+      border-radius: 40px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-light);
+    }
+
+    .scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+    }
+
+    /* Cards & Grid */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 20px;
+      transition: all 0.2s;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+      transform: scale(0.98);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-light);
+      color: var(--text);
+    }
 
     /* Home specific */
-    .home-particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-    .particle { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: var(--accent); opacity: 0.4; animation: float linear infinite; }
-    @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 0.4; } 90% { opacity: 0.2; } 100% { transform: translateY(-20px) translateX(var(--dx)); opacity: 0; } }
-    .home-status-bar { position: absolute; top: 16px; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 24px; }
-    .home-pts-badge, .home-profile-badge { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.06); padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; border: 1px solid var(--border); }
-    .scan-btn-wrap { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
-    .scan-ripple { position: absolute; width: 200px; height: 200px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; animation: ripple 2s ease-out infinite; }
-    .scan-ripple:nth-child(2) { animation-delay: 0.7s; }
-    .scan-ripple:nth-child(3) { animation-delay: 1.4s; }
-    @keyframes ripple { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
-    .scan-btn { width: 180px; height: 180px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--purple)); border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 900; color: #fff; letter-spacing: 2px; text-transform: uppercase; box-shadow: 0 0 60px rgba(74,143,255,0.3); transition: all 0.2s; position: relative; z-index: 1; animation: pulse 3s ease-in-out infinite; }
-    .scan-btn:hover { transform: scale(1.05); box-shadow: 0 0 80px rgba(74,143,255,0.5); }
-    .scan-btn:active { transform: scale(0.96); }
-    @keyframes pulse { 0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74,143,255,0.4); } 50% { transform: scale(1.04); box-shadow: 0 0 0 20px rgba(74,143,255,0); } }
-    .scan-btn-icon { font-size: 48px; line-height: 1; }
-    .scan-label { font-size: 16px; font-weight: 900; letter-spacing: 3px; }
-    .scan-sublabel { font-size: 11px; color: rgba(255,255,255,0.7); letter-spacing: 1px; }
-    .home-quick-actions { display: flex; gap: 12px; margin-top: 8px; }
-    .quick-chip { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 18px; border-radius: 14px; cursor: pointer; border: 1px solid var(--border); background: rgba(255,255,255,0.04); transition: all 0.15s; font-size: 12px; font-weight: 700; color: var(--muted); }
-    .quick-chip:hover { background: rgba(255,255,255,0.08); color: var(--text); transform: translateY(-2px); }
-    .quick-chip span:first-child { font-size: 22px; }
-    .home-alert { position: absolute; bottom: 0; left: 0; right: 0; background: var(--red); padding: 14px 20px; display: flex; align-items: center; gap: 12px; transform: translateY(100%); transition: transform 0.4s ease; border-radius: 16px 16px 0 0; }
-    .home-alert.visible { transform: translateY(0); }
-    .home-alert-text { flex: 1; }
-    .home-alert-title { font-weight: 800; font-size: 15px; }
-    .home-alert-sub { font-size: 12px; opacity: 0.85; }
+    .hero-scan {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
 
-    /* Scan overlay */
-    #view-scan { position: fixed; inset: 0; z-index: 200; background: #000; flex-direction: column; }
-    .scan-viewfinder { flex: 1; position: relative; overflow: hidden; background: linear-gradient(180deg,#050810 0%,#0a0e1a 100%); }
-    .scan-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(74,143,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(74,143,255,0.07) 1px, transparent 1px); background-size: 40px 40px; }
-    .scan-reticle { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-55%); width: 240px; height: 240px; }
-    .scan-corner { position: absolute; width: 24px; height: 24px; border-color: var(--accent); border-style: solid; }
-    .scan-corner.tl { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
-    .scan-corner.tr { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
-    .scan-corner.bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
-    .scan-corner.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
-    .scan-line { position: absolute; left: 12px; right: 12px; height: 2px; background: linear-gradient(90deg,transparent,var(--accent),transparent); animation: scanline 2s linear infinite; top: 0; box-shadow: 0 0 8px var(--accent); }
-    @keyframes scanline { 0% { top: -4px; } 100% { top: 100%; } }
-    .scan-hud { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(0deg,rgba(0,0,0,0.9),transparent); padding: 20px; }
-    .scan-hud-items { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
-    .hud-item { background: rgba(255,255,255,0.07); border-radius: 10px; padding: 10px; text-align: center; border: 1px solid var(--border); }
-    .hud-val { font-size: 18px; font-weight: 900; line-height: 1; }
-    .hud-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
-    .scan-bottom-bar { background: var(--surface); padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+    .scan-pulse {
+      width: 180px;
+      height: 180px;
+      background: linear-gradient(145deg, var(--accent), var(--purple));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      cursor: pointer;
+      box-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+      transition: 0.2s;
+      animation: softPulse 2s infinite;
+    }
 
-    /* Deaf module */
-    .sign-translator-area { background: var(--card); border-radius: 16px; min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; border: 2px solid var(--border); cursor: pointer; transition: border-color 0.2s; }
-    .sign-translator-area:hover { border-color: var(--deaf); }
-    .sign-translator-area.active { border-color: var(--deaf); animation: pulseG 2s infinite; }
-    @keyframes pulseG { 0%,100% { box-shadow: 0 0 0 0 rgba(46,232,154,0.4); } 50% { box-shadow: 0 0 0 16px rgba(46,232,154,0); } }
-    .sign-word-display { font-size: 48px; font-weight: 900; color: var(--deaf); animation: slideUp 0.3s ease; }
-    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
-    .sign-sentence { padding: 16px; background: var(--card2); border-radius: 12px; font-size: 20px; font-weight: 700; min-height: 64px; display: flex; align-items: center; justify-content: center; text-align: center; border: 1px solid var(--border); letter-spacing: 1px; }
-    .word-bubble { display: inline-block; background: rgba(155,107,255,0.15); color: var(--deaf); padding: 4px 10px; border-radius: 20px; margin: 3px; font-size: 16px; font-weight: 700; border: 1px solid rgba(155,107,255,0.3); animation: slideUp 0.2s ease; }
-    .avatar-wrap { background: var(--card); border-radius: 16px; min-height: 220px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; border: 1px solid var(--border); }
-    .sound-alert-zone { background: var(--card); border-radius: 16px; padding: 20px; border: 2px solid var(--border); }
-    .sound-alert-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px; margin-bottom: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); }
-    .sound-alert-item.sound-active { animation: blink 0.5s step-end infinite; background: rgba(255,85,85,0.1) !important; border-color: rgba(255,85,85,0.4) !important; }
-    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-    .db-meter { background: rgba(255,255,255,0.06); border-radius: 6px; height: 10px; overflow: hidden; position: relative; }
-    .db-fill { height: 100%; border-radius: 6px; transition: width 0.15s; }
+    @keyframes softPulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+      }
+      70% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
 
-    /* Wheelchair */
-    .measure-display { background: var(--card); border-radius: 16px; padding: 24px; text-align: center; border: 2px solid var(--border); transition: border-color 0.3s; }
-    .measure-val { font-size: 56px; font-weight: 900; line-height: 1; }
-    .measure-unit { font-size: 20px; color: var(--muted); font-weight: 600; }
-    .measure-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-top: 12px; }
-    .measure-ok { background: rgba(46,232,154,0.12); color: var(--green); }
-    .measure-warn { background: rgba(245,166,35,0.12); color: var(--amber); }
-    .measure-bad { background: rgba(255,85,85,0.12); color: var(--red); }
-    .indoor-map { background: #0d1020; border-radius: 16px; position: relative; overflow: hidden; border: 1px solid var(--border); height: 200px; }
-    .map-room { position: absolute; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; font-size: 10px; color: rgba(255,255,255,0.3); font-weight: 600; letter-spacing: 1px; }
-    .map-user { position: absolute; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 12px var(--accent); transform: translate(-50%,-50%); animation: pulseG 1.5s infinite; transition: left 1s ease, top 1s ease; }
-    .location-card { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--card2); border-radius: 10px; cursor: pointer; border: 1px solid var(--border); transition: all 0.15s; margin-bottom: 8px; }
-    .location-card:hover { border-color: var(--border2); background: rgba(255,255,255,0.04); }
-    .loc-score { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 900; flex-shrink: 0; }
+    .quick-chips {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 12px;
+    }
 
-    /* Sensory */
-    .sensor-big-display { background: var(--card); border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 16px; border: 1px solid var(--border); }
-    .sensor-icon-big { font-size: 48px; flex-shrink: 0; }
-    .sensor-reading { flex: 1; }
-    .sensor-val-big { font-size: 52px; font-weight: 900; line-height: 1; }
-    .sensor-lbl-big { font-size: 14px; color: var(--muted); margin-top: 4px; }
-    .noise-viz { background: var(--card); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); position: relative; margin-top: 10px; }
-    .noise-bars { display: flex; align-items: flex-end; gap: 2px; padding: 16px 16px 8px; height: 80px; }
-    .noise-bar { flex: 1; border-radius: 2px 2px 0 0; transition: height 0.1s ease; min-width: 3px; }
-    .quiet-zone-card { background: var(--card); border-radius: 16px; padding: 20px; border: 2px solid rgba(46,232,154,0.2); display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
-    .quiet-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(46,232,154,0.1); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-    .stress-meter { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid var(--border); }
-    .heart-rate-display { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-    .hr-val { font-size: 40px; font-weight: 900; color: var(--red); }
-    .hr-icon { font-size: 32px; animation: blink 0.9s ease-in-out infinite; }
+    .chip {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 10px 20px;
+      border-radius: 40px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.1s;
+    }
 
-    /* Blind */
-    .ocr-area { background: var(--card); border-radius: 16px; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed var(--border2); cursor: pointer; transition: all 0.2s; position: relative; margin-bottom: 16px; }
-    .ocr-area:hover { border-color: var(--blind); background: rgba(46,232,154,0.03); }
-    .ocr-text-display { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1.5; padding: 16px; background: var(--card2); border-radius: 10px; border: 1px solid var(--border); min-height: 80px; }
-    .haptic-nav-display { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid var(--border); }
-    .direction-compass { width: 100px; height: 100px; margin: 0 auto 16px; position: relative; display: flex; align-items: center; justify-content: center; }
-    .compass-arrow { font-size: 48px; transition: transform 0.5s ease; display: block; text-align: center; }
-    .haptic-instruction { font-size: 18px; font-weight: 700; text-align: center; padding: 12px; background: var(--card2); border-radius: 10px; border: 1px solid var(--border); }
-    .obstacle-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 6px; background: rgba(255,255,255,0.03); }
-    #video, #detection-canvas { width: 100%; border-radius: 12px; }
-    .camera-container { position: relative; }
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1e293b;
+      backdrop-filter: blur(12px);
+      padding: 12px 24px;
+      border-radius: 60px;
+      color: white;
+      font-weight: 500;
+      z-index: 9999;
+      opacity: 0;
+      transition: 0.2s;
+      pointer-events: none;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
 
-    /* B2B & Gamification */
-    .esg-ring-wrap { position: relative; width: 140px; height: 140px; margin: 0 auto 16px; }
-    .esg-score-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
-    .esg-score-num { font-size: 36px; font-weight: 900; color: var(--green); }
-    .heatmap-canvas { width: 100%; height: 200px; border-radius: 10px; background: #0a0e18; cursor: crosshair; border: 1px solid var(--border); }
-    .rec-chip { display: flex; gap: 10px; padding: 12px 14px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid var(--border); margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
-    .leader-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-    .leader-row:last-child { border-bottom: none; }
-    .leader-av { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
-    .leader-name { flex: 1; font-size: 13px; font-weight: 600; }
-    .leader-pts { font-size: 13px; font-weight: 800; color: var(--accent); }
-    .points-hero { background: linear-gradient(135deg,rgba(74,143,255,0.15),rgba(155,107,255,0.15)); border: 1px solid rgba(74,143,255,0.2); border-radius: 20px; padding: 28px; text-align: center; }
-    .points-total { font-size: 64px; font-weight: 900; color: var(--accent); line-height: 1; }
-    .voucher-card { background: var(--card); border-radius: 14px; padding: 16px; border: 1px solid var(--border); display: flex; align-items: center; gap: 14px; cursor: pointer; transition: all 0.15s; margin-bottom: 8px; }
-    .voucher-card:hover { border-color: var(--border2); transform: translateX(2px); }
-    .voucher-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-    .voucher-cost { font-size: 11px; font-weight: 700; padding: 3px 8px; background: rgba(74,143,255,0.12); color: var(--accent); border-radius: 10px; }
-    .activity-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-    .activity-item:last-child { border-bottom: none; }
-    .activity-pts { margin-left: auto; font-weight: 800; color: var(--green); font-size: 13px; flex-shrink: 0; }
-    .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--card2); border: 1px solid var(--border2); border-radius: 14px; padding: 12px 20px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; box-shadow: 0 8px 32px rgba(0,0,0,0.5); opacity: 0; transition: all 0.3s; z-index: 9999; pointer-events: none; max-width: 340px; text-align: center; }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    @media (max-width: 640px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .scan-btn { width: 150px; height: 150px; } .scan-btn-icon { font-size: 40px; } }
+    /* Responsive */
+    @media (max-width: 700px) {
+      .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+      .scroll-area {
+        padding: 16px;
+      }
+    }
   </style>
 </head>
 <body>
 <div id="app">
-  <nav class="sidebar" id="sidebar" style="display:none">
-    <div class="sidebar-logo-wrap"><div class="sidebar-logo">♿</div><div class="sidebar-logo-text">AXS</div></div>
-    <div class="nav-btn-wrap active" onclick="navigate('home')" id="nav-home"><div class="nav-icon">🏠</div><span class="nav-label">Home</span></div>
-    <div class="nav-btn-wrap" onclick="navigate('deaf')" id="nav-deaf"><div class="nav-icon">🤟</div><span class="nav-label">Deaf / HoH</span></div>
-    <div class="nav-btn-wrap" onclick="navigate('wheelchair')" id="nav-wheelchair"><div class="nav-icon">♿</div><span class="nav-label">Mobilitate</span></div>
-    <div class="nav-btn-wrap" onclick="navigate('sensory')" id="nav-sensory"><div class="nav-icon">🧠</div><span class="nav-label">Senzorial / ND</span></div>
-    <div class="nav-btn-wrap" onclick="navigate('blind')" id="nav-blind"><div class="nav-icon">👁️</div><span class="nav-label">Nevăzători</span></div>
-    <div class="nav-btn-wrap" onclick="navigate('b2b')" id="nav-b2b"><div class="nav-icon">📊</div><span class="nav-label">Dashboard B2B</span></div>
-    <div class="nav-btn-wrap" onclick="navigate('gamification')" id="nav-gamification"><div class="nav-icon">🏆</div><span class="nav-label">Gamification</span></div>
-    <div class="sidebar-toggle" onclick="toggleSidebar()" title="Expand sidebar">⇄</div>
-  </nav>
-
-  <!-- ONBOARDING -->
-  <div id="view-onboarding" class="view active" style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh">
-    <div class="onboarding-header"><div style="font-size:56px;margin-bottom:12px">♿</div><h1>AXS All-In-One</h1><p>Selectează profilul tău de accesibilitate.<br>Interfața se adaptează complet nevoilor tale.</p></div>
-    <div class="profile-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:560px;width:100%">
-      <div class="profile-card deaf" onclick="selectProfile('deaf',this)"><div class="profile-check">✓</div><div class="profile-icon" style="background:rgba(155,107,255,0.15)">🤟</div><div class="profile-name" style="color:var(--deaf)">Surd / AV</div><div class="profile-desc">Traducere limbaj mimico-gestual → voce, alarme vizuale, avatar 3D animat pentru Voice→Sign.</div></div>
-      <div class="profile-card wheelchair" onclick="selectProfile('wheelchair',this)"><div class="profile-check">✓</div><div class="profile-icon" style="background:rgba(74,143,255,0.15)">♿</div><div class="profile-name" style="color:var(--wheelchair)">Scaun cu Rotile</div><div class="profile-desc">Măsurare rampă & ușă, navigație interioară SLAM 3D, hartă accesibilitate.</div></div>
-      <div class="profile-card blind" onclick="selectProfile('blind',this)"><div class="profile-check">✓</div><div class="profile-icon" style="background:rgba(46,232,154,0.15)">👁️</div><div class="profile-name" style="color:var(--blind)">Nevăzător / AV</div><div class="profile-desc">OCR etichete, detectare obstacole TFLite, navigație haptic & audio pas-cu-pas.</div></div>
-      <div class="profile-card nd" onclick="selectProfile('nd',this)"><div class="profile-check">✓</div><div class="profile-icon" style="background:rgba(245,166,35,0.15)">🧠</div><div class="profile-name" style="color:var(--nd)">Neurodivergent</div><div class="profile-desc">Monitor zgomot & lumină în timp real, ruter Quiet Zone, alertă ritm cardiac.</div></div>
+  <div class="sidebar" id="sidebar">
+    <div class="logo-area">
+      <div class="logo-icon">♿</div>
+      <div class="logo-text">AXS</div>
     </div>
-    <div class="onboarding-footer"><button class="btn btn-primary" onclick="startApp()" id="start-btn" style="opacity:0.4;pointer-events:none;padding:14px 40px;font-size:16px;border-radius:14px">Începe →</button><div style="margin-top:12px;font-size:12px;color:var(--muted)">Poți schimba profilul oricând din Setări</div></div>
+    <div class="nav-item active" data-view="home"><div class="nav-icon">🏠</div><span class="nav-label">Acasă</span></div>
+    <div class="nav-item" data-view="deaf"><div class="nav-icon">🤟</div><span class="nav-label">Surd / AV</span></div>
+    <div class="nav-item" data-view="wheelchair"><div class="nav-icon">♿</div><span class="nav-label">Mobilitate</span></div>
+    <div class="nav-item" data-view="sensory"><div class="nav-icon">🧠</div><span class="nav-label">Senzorial</span></div>
+    <div class="nav-item" data-view="blind"><div class="nav-icon">👁️</div><span class="nav-label">Nevăzători</span></div>
+    <div class="nav-item" data-view="b2b"><div class="nav-icon">📊</div><span class="nav-label">B2B ESG</span></div>
+    <div class="nav-item" data-view="gamification"><div class="nav-icon">🏆</div><span class="nav-label">Gamification</span></div>
+    <div class="sidebar-toggle" id="toggleSidebar">⇄</div>
   </div>
 
-  <!-- HOME -->
-  <div id="view-home" class="view main" style="display:none"><div class="home-particles" id="particles"></div><div class="home-status-bar"><div class="home-pts-badge">⭐ <span id="pts-display">0</span> pts</div><div class="home-profile-badge" id="profile-badge">—</div></div><div class="scan-btn-wrap"><div class="scan-ripple"></div><div class="scan-ripple"></div><div class="scan-ripple"></div><button class="scan-btn" id="main-scan-btn" onclick="startScan()"><div class="scan-btn-icon">🔍</div><div class="scan-label">SCAN</div><div class="scan-sublabel">& ASSIST</div></button></div><div class="home-quick-actions" id="quick-actions"></div><div class="home-alert" id="home-alert"><span style="font-size:24px">⚠️</span><div class="home-alert-text"><div class="home-alert-title" id="alert-title">Alertă Sonoră</div><div class="home-alert-sub" id="alert-sub">Nivel ridicat de zgomot detectat</div></div><button class="btn btn-ghost btn-sm" onclick="dismissAlert()">×</button></div></div>
+  <div class="main-content">
+    <!-- ONBOARDING -->
+    <div id="view-onboarding" class="view active" style="justify-content: center; align-items: center; text-align: center;">
+      <div style="max-width: 500px; padding: 24px;">
+        <div style="font-size: 64px; margin-bottom: 16px;">🌍</div>
+        <h1 style="font-size: 32px; margin-bottom: 8px;">AXS All-In-One</h1>
+        <p style="color: var(--text-muted); margin-bottom: 32px;">Alege profilul tău de accesibilitate. Interfața se adaptează complet.</p>
+        <div class="grid-2" style="gap: 12px; margin-bottom: 32px;">
+          <div class="card" style="cursor: pointer;" data-profile="deaf">🤟 Surd / AV</div>
+          <div class="card" style="cursor: pointer;" data-profile="wheelchair">♿ Scaun rulant</div>
+          <div class="card" style="cursor: pointer;" data-profile="blind">👁️ Nevăzător</div>
+          <div class="card" style="cursor: pointer;" data-profile="nd">🧠 Neurodivergent</div>
+        </div>
+        <button id="startBtn" class="btn btn-primary" style="padding: 14px 32px; font-size: 16px;" disabled>Începe experiența →</button>
+      </div>
+    </div>
 
-  <!-- SCAN OVERLAY -->
-  <div id="view-scan" class="view" style="display:none"><div class="scan-viewfinder"><div class="scan-grid"></div><div class="scan-reticle"><div class="scan-corner tl"></div><div class="scan-corner tr"></div><div class="scan-corner bl"></div><div class="scan-corner br"></div><div class="scan-line"></div></div><div class="scan-detections" id="scan-detections"></div><div class="scan-hud"><div class="scan-hud-items"><div class="hud-item"><div class="hud-val" id="hud-db">--</div><div class="hud-lbl">dB Zgomot</div></div><div class="hud-item"><div class="hud-val" id="hud-lux">--</div><div class="hud-lbl">Lux</div></div><div class="hud-item"><div class="hud-val" id="hud-obj">0</div><div class="hud-lbl">Obiecte</div></div></div></div></div><div class="scan-bottom-bar"><button class="btn btn-ghost" onclick="closeScan()">✕ Închide</button><button class="btn btn-primary" onclick="saveReport()">💾 Salvează Raport (+15 pts)</button></div></div>
+    <!-- HOME -->
+    <div id="view-home" class="view"><div class="top-bar"><div class="page-title">✨ AXS Hub</div><div style="margin-left: auto; display: flex; gap: 12px;"><span class="badge" id="homePoints">⭐ 0 pts</span><span class="badge" id="profileName">Profil</span></div></div><div class="scroll-area"><div class="hero-scan"><div class="scan-pulse" id="globalScanBtn"><div style="font-size: 48px;">🔍</div><div style="font-weight: bold;">SCAN</div><div style="font-size: 12px;">asistent rapid</div></div></div><div id="quickActions" class="quick-chips"></div><div id="alertBanner" style="margin-top: 24px; background: rgba(239,68,68,0.1); border-radius: 20px; padding: 16px; display: none; border-left: 4px solid var(--red);"></div></div></div>
 
-  <!-- DEAF MODULE -->
-  <div id="view-deaf" class="view main" style="display:none"><div class="topbar"><div><div class="topbar-title">🤟 Modulul Surd / AV</div><div class="topbar-sub">Sign→Voice · Voice→Sign · Alarme Vizuale</div></div><div class="topbar-right"><span class="badge badge-purple">MediaPipe (demo)</span></div></div><div class="scroll-content"><div class="grid grid-2"><div><div style="margin-bottom:8px;font-weight:700;">SIGN → VOICE</div><div class="sign-translator-area" id="sign-area" onclick="toggleSignTranslation()"><div id="sign-placeholder" class="sign-placeholder"><div class="sign-placeholder-icon">🤟</div><div>Apasă pentru traducere (demo)</div></div><div id="sign-active" style="display:none;width:100%;padding:20px"><div id="current-gesture" class="sign-word-display">—</div><div id="gesture-confidence" style="font-size:12px"></div></div></div><div><div>PROPOZIȚIE TRADUSĂ:</div><div class="sign-sentence" id="sign-sentence-display">—</div><div id="sign-words" style="margin-top:8px;min-height:32px"></div></div></div><div><div>VOICE → SIGN AVATAR</div><div class="avatar-wrap"><svg id="avatar-svg" width="160" height="200" viewBox="0 0 160 200"><circle cx="80" cy="50" r="28" fill="#4a8fff"/><ellipse cx="80" cy="130" rx="30" ry="40" fill="#3d7aee"/><circle cx="70" cy="46" r="5" fill="white"/><circle cx="90" cy="46" r="5" fill="white"/><circle cx="71" cy="47" r="2.5" fill="#1a1d28"/><circle cx="91" cy="47" r="2.5" fill="#1a1d28"/><path id="avatar-mouth" d="M68 62 Q80 70 92 62" stroke="white" stroke-width="2" fill="none"/><path id="arm-left" d="M50 110 Q30 120 25 140" stroke="#3d7aee" stroke-width="12" fill="none"/><path id="arm-right" d="M110 110 Q130 120 135 140" stroke="#3d7aee" stroke-width="12" fill="none"/><circle id="hand-left" cx="25" cy="145" r="10" fill="#4a8fff"/><circle id="hand-right" cx="135" cy="145" r="10" fill="#4a8fff"/><rect x="10" y="170" width="140" height="24" rx="6" fill="rgba(155,107,255,0.2)"/><text id="avatar-word-text" x="80" y="186" text-anchor="middle" fill="#9b6bff" font-size="12">—</text></svg></div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="startVoiceInput()">🎤 Ascultă Voce</button><button class="btn btn-ghost btn-sm" onclick="typeForTranslation()">⌨️ Tastează</button></div><div id="voice-input-text" style="margin-top:8px;font-size:13px;color:var(--muted)"></div></div></div><div>ALARME SONORE VIZUALE</div><div class="sound-alert-zone"><div id="sound-alerts-list"><div class="sound-alert-item" id="alert-alarm"><div class="sound-icon">🔔</div><div><div>Alarmă Incendiu</div><div class="db-meter"><div class="db-fill" style="width:15%"></div></div></div><div>✓</div></div><div class="sound-alert-item" id="alert-horn"><div class="sound-icon">🚗</div><div><div>Claxon Auto</div><div class="db-meter"><div class="db-fill" style="width:20%"></div></div></div><div>✓</div></div></div><button class="btn btn-danger btn-sm" style="width:100%;margin-top:10px" onclick="testAllAlerts()">⚡ Testează Toate Alertele</button></div></div></div>
+    <!-- DEAF -->
+    <div id="view-deaf" class="view"><div class="top-bar"><div class="page-title">🤟 Traducere LMB ↔ Voce</div><span class="badge">demo mediapipe</span></div><div class="scroll-area"><div class="grid-2"><div class="card"><div style="font-weight: bold;">Semn → Text & Voce</div><div id="signDemoArea" style="background: #0f1222; border-radius: 20px; padding: 32px; text-align: center; margin-top: 12px; cursor: pointer;"><span style="font-size: 48px;">🤟</span><div>Apasă pentru a începe traducerea semnelor</div><div id="gestureWord" style="font-size: 28px; font-weight: bold; margin-top: 12px;">—</div></div><div id="sentenceBuild" style="margin-top: 16px; min-height: 60px; background: #0a0c18; border-radius: 16px; padding: 12px;"></div></div><div class="card"><div style="font-weight: bold;">Voce → Avatar semnare</div><div style="text-align: center;"><div id="avatarWord" style="font-size: 52px; font-weight: 800; color: var(--deaf);">🤖</div><div id="spokenText" style="margin: 12px 0;">—</div><button class="btn btn-primary" id="voiceInputBtn">🎤 Vorbește</button><button class="btn btn-ghost" id="typeTextBtn">⌨️ Tastează</button></div></div></div><div class="card" style="margin-top: 16px;"><div style="font-weight: bold;">Alarme vizuale (demo)</div><button class="btn btn-danger" id="testAlertsBtn">🔔 Simulează alarmă incendiu / sonoră</button></div></div></div>
 
-  <!-- WHEELCHAIR MODULE -->
-  <div id="view-wheelchair" class="view main" style="display:none"><div class="topbar"><div><div class="topbar-title">♿ Mobilitate & Navigație</div><div class="topbar-sub">Înclinație reală · Hartă cu rutare</div></div><div class="topbar-right"><span class="badge badge-blue">GPS + Senzori</span></div></div><div class="scroll-content"><div class="grid grid-2"><div><div>ÎNCLINAȚIE RAMPĂ (reală)</div><div class="measure-display"><div class="measure-val" id="ramp-val">--</div><div class="measure-unit">grade</div><div class="measure-status" id="ramp-status">Așteaptă senzor...</div><button class="btn btn-primary btn-sm" onclick="requestInclinePermission()">🎯 Activează senzorul</button></div></div><div><div>LĂȚIME UȘĂ (simulată)</div><div class="measure-display"><div class="measure-val" id="door-val">—</div><div class="measure-unit">cm</div><button class="btn btn-primary btn-sm" onclick="measureDoorSim()">📏 Măsoară</button></div></div></div><div><div>HARTĂ NAVIGAȚIE (reală)</div><div id="map-container" style="height: 300px; border-radius: 16px; overflow: hidden;"></div><button class="btn btn-primary btn-sm" onclick="startRealNavigation()">🧭 Navighează la destinație (Lift)</button><div id="nav-instruction" style="margin-top:10px;padding:10px;background:rgba(74,143,255,0.08);border-radius:8px;display:none"></div></div><div>LOCAȚII NEARBY</div><div id="locations-list"></div></div></div>
+    <!-- WHEELCHAIR -->
+    <div id="view-wheelchair" class="view"><div class="top-bar"><div class="page-title">♿ Navigație accesibilă</div></div><div class="scroll-area"><div class="grid-2"><div class="card"><div>📐 Înclinare rampă</div><div id="inclineValue" style="font-size: 48px; font-weight: bold;">--°</div><div id="inclineStatus">Așteaptă senzor</div><button id="enableOrientationBtn" class="btn btn-primary">🎯 Activează senzor înclinare</button></div><div class="card"><div>🚪 Lățime ușă (simulare)</div><div id="doorWidth" style="font-size: 48px;">-- cm</div><button id="measureDoorBtn" class="btn btn-primary">📏 Măsoară ușă</button></div></div><div class="card" style="margin-top: 16px;"><div>🗺️ Hartă interactivă (accesibilitate)</div><div id="wheelchairMap" style="height: 280px; border-radius: 20px; margin-bottom: 12px;"></div><button id="startRouteBtn" class="btn btn-primary">🧭 Navighează către lift accesibil</button><div id="routeInstruction" style="margin-top: 12px;"></div></div></div></div>
 
-  <!-- SENSORY MODULE -->
-  <div id="view-sensory" class="view main" style="display:none"><div class="topbar"><div><div class="topbar-title">🧠 Senzorial / Neurodivergent</div><div class="topbar-sub">Monitor zgomot real · Lumină · HR (sim)</div></div><div class="topbar-right"><span class="badge badge-amber" id="sensory-status-badge">Normal</span></div></div><div class="scroll-content"><div class="grid grid-2"><div><div class="sensor-big-display"><div class="sensor-icon-big">🔊</div><div><div class="sensor-val-big" id="db-reading">--</div><div>Decibeli</div><div class="progress-wrap"><div class="progress-fill" id="db-fill" style="width:0%"></div></div><div id="db-label">Așteaptă permisiune microfon</div><button class="btn btn-ghost btn-sm" onclick="requestMicrophone()">🎙️ Activează microfon</button></div></div><div class="noise-viz"><div class="noise-bars" id="noise-bars"></div></div></div><div><div class="sensor-big-display"><div class="sensor-icon-big">💡</div><div><div class="sensor-val-big" id="lux-reading">--</div><div>Lux</div><div class="progress-wrap"><div class="progress-fill" id="lux-fill"></div></div><div id="lux-label">Senzor lumină</div></div></div><div class="stress-meter"><div class="heart-rate-display"><div class="hr-icon">❤️</div><div><div class="hr-val" id="hr-reading">72</div><div>BPM (sim)</div></div></div><button class="btn btn-ghost btn-sm" onclick="simulateStress()">⚡ Simulează Stres</button></div></div></div><div>QUIET ZONE NAVIGATOR</div><div class="quiet-zone-card"><div class="quiet-icon">🌿</div><div><div id="qz-name">Cea mai apropiată zonă liniștită</div><div id="qz-dist"></div><button class="btn btn-green btn-sm" onclick="navigateToQuiet()">🧭 Navighează</button></div></div></div></div>
+    <!-- SENSORY -->
+    <div id="view-sensory" class="view"><div class="top-bar"><div class="page-title">🧠 Mediu senzorial</div></div><div class="scroll-area"><div class="grid-2"><div class="card"><div>🔊 Zgomot ambiental</div><div id="dbValue" style="font-size: 56px;">-- dB</div><div class="progress-bar" style="background:#1e293b; height: 8px; border-radius: 8px;"><div id="dbProgress" style="width:0%; height:8px; background:var(--green); border-radius:8px;"></div></div><button id="enableMicBtn" class="btn btn-primary" style="margin-top: 12px;">🎙️ Activează microfon</button></div><div class="card"><div>💡 Lumină ambientală</div><div id="luxValue" style="font-size: 56px;">-- lux</div><div class="progress-bar" style="background:#1e293b; height: 8px; border-radius: 8px;"><div id="luxProgress" style="width:0%; height:8px; background:var(--amber); border-radius:8px;"></div></div></div></div><div class="card"><div>🌿 Quiet Zone Navigator</div><div>Zonă liniștită recomandată: <strong>Biblioteca Centrală</strong> (300m)</div><button id="navigateQuietBtn" class="btn btn-green">🧭 Ghidează-mă spre liniște</button></div></div></div>
 
-  <!-- BLIND MODULE -->
-  <div id="view-blind" class="view main" style="display:none"><div class="topbar"><div><div class="topbar-title">👁️ Asistent Nevăzători</div><div class="topbar-sub">OCR real · Detectare obiecte live</div></div><div class="topbar-right"><span class="badge badge-green">TFLite Active</span></div></div><div class="scroll-content"><div><div>OCR — CITIRE ETICHETE</div><div class="ocr-area" id="ocr-area" onclick="startRealOCR()"><div id="ocr-placeholder" style="text-align:center;color:var(--muted);padding:32px"><div style="font-size:48px">📷</div><div>Apasă pentru a scana eticheta (cameră)</div></div><div id="ocr-scanning" style="display:none;text-align:center;padding:32px">⏳ Procesez...</div><div id="ocr-result-area" style="display:none;width:100%;padding:16px"><div class="ocr-text-display" id="ocr-text-output"></div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-primary btn-sm" onclick="speakOCR()">🔊 Citește</button><button class="btn btn-ghost btn-sm" onclick="resetOCR()">↺ Scan Nou</button></div></div></div></div><div class="grid grid-2"><div><div>DETECTARE OBSTACOLE LIVE</div><div class="card"><div style="position:relative"><video id="video" autoplay playsinline muted style="width:100%; border-radius:12px"></video><canvas id="detection-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none"></canvas></div><button class="btn btn-primary btn-sm" onclick="startObjectDetection()">📹 Pornește detectarea</button><div id="obstacle-list"></div></div></div><div><div>NAVIGAȚIE HAPTIC (pas cu pas)</div><div class="haptic-nav-display"><div class="direction-compass"><span class="compass-arrow" id="nav-arrow">➡️</span></div><div class="haptic-instruction" id="haptic-instruction">Inițializare...</div><button class="btn btn-primary btn-sm" onclick="startHapticNav()">▶ Start</button><button class="btn btn-ghost btn-sm" onclick="nextStep()">→ Pas următor</button></div></div></div></div></div>
+    <!-- BLIND -->
+    <div id="view-blind" class="view"><div class="top-bar"><div class="page-title">👁️ Asistent vizual</div></div><div class="scroll-area"><div class="grid-2"><div class="card"><div>📷 OCR - Citește text (cameră)</div><div id="ocrResult" style="background:#0f111c; border-radius: 16px; padding: 20px; margin-bottom: 12px; min-height: 80px;">Apasă pentru a scana</div><button id="startOcrBtn" class="btn btn-primary">🔍 Scanează etichetă / text</button><button id="speakOcrBtn" class="btn btn-ghost">🔊 Citește cu voce</button></div><div class="card"><div>🚧 Detectare obstacole live</div><video id="detectVideo" autoplay playsinline muted style="width:100%; border-radius: 16px;"></video><canvas id="detectCanvas" style="display: none;"></canvas><div id="obstacleList" style="margin-top: 12px;"></div><button id="startDetectBtn" class="btn btn-primary">📹 Pornește detectarea</button><button id="stopDetectBtn" class="btn btn-ghost">⏹️ Oprește</button></div></div><div class="card"><div>🧭 Navigație haptică</div><div id="hapticStepText" style="font-size: 20px; font-weight: bold;">Pregătit</div><button id="hapticStartBtn" class="btn btn-primary">Start ghid pas cu pas</button><button id="hapticNextBtn" class="btn btn-ghost">Următorul pas</button></div></div></div>
 
-  <!-- B2B DASHBOARD -->
-  <div id="view-b2b" class="view main" style="display:none"><div class="topbar"><div><div class="topbar-title">📊 Dashboard B2B — ESG</div><div class="topbar-sub">Date reale din aplicație</div></div><div class="topbar-right"><span class="badge badge-green">✓ ESG Certified</span><button class="btn btn-ghost btn-sm" onclick="downloadPDF()">⬇ PDF</button></div></div><div class="scroll-content"><div class="grid grid-4"><div class="card"><div>SCOR ESG</div><div style="font-size:40px;font-weight:900;color:var(--green)" id="esg-score">76</div></div><div class="card"><div>VALIDĂRI</div><div style="font-size:40px;font-weight:900;color:var(--accent)" id="total-reports">0</div></div><div class="card"><div>PUNCTE DISTRIBUITE</div><div style="font-size:40px;font-weight:900;color:var(--purple)" id="total-points">0</div></div></div><div class="grid grid-2"><div class="card"><div>Heatmap Incluziune (demo)</div><canvas id="b2b-heatmap" class="heatmap-canvas" style="height:200px"></canvas></div><div class="card"><div>Scor ESG Detaliat</div><div class="esg-ring-wrap"><canvas id="esg-ring" width="140" height="140"></canvas><div class="esg-score-center"><div class="esg-score-num">76</div></div></div><div class="stat-row"><span>Mobilitate Fizică</span><span>82</span></div><div class="stat-row"><span>Senzorial</span><span>71</span></div><div class="stat-row"><span>Quiet Zones</span><span>68</span></div></div></div><div class="card"><div>Top Contributori</div><div id="b2b-leaderboard"></div></div></div></div>
+    <!-- B2B -->
+    <div id="view-b2b" class="view"><div class="top-bar"><div class="page-title">📊 Dashboard incluziune ESG</div><button id="downloadPdfBtn" class="btn btn-ghost">⬇ Export PDF</button></div><div class="scroll-area"><div class="grid-3"><div class="card"><div>Scor ESG</div><div id="esgScoreDisplay" style="font-size: 52px; font-weight: bold;">78</div></div><div class="card"><div>Rapoarte generate</div><div id="totalReportsCount">0</div></div><div class="card"><div>Puncte comunitate</div><div id="totalPointsB2B">0</div></div></div><div class="card"><div>🏆 Top contributori</div><div id="b2bLeaders"></div></div></div></div>
 
-  <!-- GAMIFICATION -->
-  <div id="view-gamification" class="view main" style="display:none"><div class="topbar"><div><div class="topbar-title">🏆 Gamification</div><div class="topbar-sub">Puncte · Vouchere · Leaderboard</div></div><div class="topbar-right"><span class="badge badge-amber">Rang: Explorer</span></div></div><div class="scroll-content"><div class="points-hero"><div class="points-total" id="points-total-display">0</div><div>≈ <span id="voucher-equiv">0</span> RON</div><div class="progress-wrap"><div class="progress-fill" id="rank-progress" style="width:0%"></div></div></div><div class="grid grid-2"><div><div>VOUCHERE DISPONIBILE</div><div id="vouchers-list"></div></div><div><div>ACTIVITATE RECENTĂ</div><div id="activity-list"></div><div>BADGE-URI</div><div id="badges-list"></div></div></div><div>CLASAMENT NAȚIONAL</div><div id="full-leaderboard"></div></div></div>
+    <!-- GAMIFICATION -->
+    <div id="view-gamification" class="view"><div class="top-bar"><div class="page-title">🏆 Recompense & Gamification</div></div><div class="scroll-area"><div class="card" style="text-align: center;"><div style="font-size: 64px; font-weight: bold;" id="gamificationPoints">0</div><div>puncte AXS</div><div class="progress-bar" style="background:#1e293b; height: 8px; border-radius: 8px; margin-top: 12px;"><div id="rankProgressBar" style="width:0%; height:8px; background:var(--accent); border-radius:8px;"></div></div></div><div class="grid-2"><div class="card"><div>🎁 Vouchere disponibile</div><div id="vouchersList"></div></div><div class="card"><div>📜 Activitate recentă</div><div id="activityFeed"></div></div></div><div class="card"><div>🌟 Clasament național</div><div id="leaderboardFull"></div></div></div></div>
+  </div>
 </div>
-<div class="toast" id="toast"></div>
+<div id="toastMessage" class="toast"></div>
 
 <script>
-  // ========== GLOBAL STATE ==========
-  let STATE = {
+  // ---------- STATE ----------
+  let appState = {
     profile: null,
     points: 0,
-    view: 'onboarding',
-    sidebarExpanded: false,
-    scanActive: false,
     activities: [],
+    model: null,
+    detectionActive: false,
+    detectionStream: null,
+    animationFrame: null,
+    currentRouteControl: null,
+    mapInstance: null,
+    micInterval: null,
     mediaStream: null,
-    objectModel: null,
     audioContext: null,
-    micAnalyser: null,
-    micData: null,
-    dbInterval: null,
-    lightSensor: null,
-    map: null,
-    routingControl: null,
     signInterval: null,
-    gestureWords: []
+    gestureQueue: [],
+    hapticIndex: 0
   };
 
-  // Load/save data
-  function loadData() {
-    const savedPoints = localStorage.getItem('axs_points');
-    if (savedPoints) STATE.points = parseInt(savedPoints);
-    const savedActivities = localStorage.getItem('axs_activities');
-    if (savedActivities) STATE.activities = JSON.parse(savedActivities);
-    else STATE.activities = [];
+  const hapticSteps = [
+    { dir: "➡️", text: "Mergi drept 15 metri" },
+    { dir: "⬅️", text: "Virează stânga la rampă" },
+    { dir: "⬆️", text: "Urcă rampa în siguranță" },
+    { dir: "🏁", text: "Ai ajuns! Intrarea accesibilă" }
+  ];
+
+  // Helpers
+  function saveToLocal() {
+    localStorage.setItem("axs_points", appState.points);
+    localStorage.setItem("axs_activities", JSON.stringify(appState.activities));
+    localStorage.setItem("axs_profile", appState.profile);
+  }
+  function loadLocal() {
+    const pts = localStorage.getItem("axs_points");
+    if (pts) appState.points = parseInt(pts);
+    const acts = localStorage.getItem("axs_activities");
+    if (acts) appState.activities = JSON.parse(acts);
+    const prof = localStorage.getItem("axs_profile");
+    if (prof) appState.profile = prof;
+  }
+  function addPoints(amount, action) {
+    appState.points += amount;
+    appState.activities.unshift({ text: action, pts: `+${amount}`, time: new Date().toLocaleTimeString() });
+    saveToLocal();
     updatePointsUI();
+    showToast(`+${amount} puncte: ${action}`, "#10b981");
   }
-  function saveData() {
-    localStorage.setItem('axs_points', STATE.points);
-    localStorage.setItem('axs_activities', JSON.stringify(STATE.activities.slice(0, 20)));
+  function showToast(msg, color = "#3b82f6") {
+    const toast = document.getElementById("toastMessage");
+    toast.textContent = msg;
+    toast.style.opacity = "1";
+    toast.style.transform = "translateX(-50%) translateY(0)";
+    toast.style.borderLeft = `4px solid ${color}`;
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transform = "translateX(-50%) translateY(20px)";
+    }, 2800);
   }
-  function addPoints(pts, action) {
-    STATE.points += pts;
-    updatePointsUI();
-    STATE.activities.unshift({ text: action, pts: `+${pts} pts`, time: new Date().toLocaleTimeString() });
-    saveData();
-    showToast(`+${pts} pts: ${action}`, 'var(--green)');
-    if (STATE.view === 'gamification') renderActivityList();
-  }
-  function updatePointsUI() {
-    document.querySelectorAll('#pts-display, #points-total-display').forEach(el => el.textContent = STATE.points);
-    document.getElementById('voucher-equiv').innerHTML = Math.floor(STATE.points * 0.05);
-    const threshold = 500;
-    const pct = Math.min((STATE.points / threshold) * 100, 100);
-    const rankProgress = document.getElementById('rank-progress');
-    if (rankProgress) rankProgress.style.width = pct + '%';
-    const nextText = document.getElementById('rank-next-text');
-    if (nextText) nextText.innerHTML = Math.max(0, threshold - STATE.points) + ' pts până la Ranger';
-  }
-  function showToast(msg, color) {
-    const toast = document.getElementById('toast');
-    toast.innerHTML = msg;
-    toast.style.borderColor = color;
-    toast.classList.add('show');
-    clearTimeout(window.toastTimeout);
-    window.toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
-  }
-  function speakText(text) {
+  function speak(msg) {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.lang = 'ro-RO';
-    utt.rate = 0.9;
-    window.speechSynthesis.speak(utt);
+    const utterance = new SpeechSynthesisUtterance(msg);
+    utterance.lang = "ro-RO";
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
   }
-
-  // ========== ONBOARDING ==========
-  let selectedProfile = null;
-  function selectProfile(profile, el) {
-    document.querySelectorAll('.profile-card').forEach(c => c.classList.remove('selected'));
-    el.classList.add('selected');
-    selectedProfile = profile;
-    const btn = document.getElementById('start-btn');
-    btn.style.opacity = '1';
-    btn.style.pointerEvents = 'auto';
+  function updatePointsUI() {
+    document.querySelectorAll("#homePoints, #gamificationPoints, #totalPointsB2B").forEach(el => el && (el.innerHTML = `${appState.points} pts`));
+    document.getElementById("points-total-display") && (document.getElementById("points-total-display").innerHTML = appState.points);
+    const progressPercent = Math.min((appState.points / 600) * 100, 100);
+    const rankBar = document.getElementById("rankProgressBar");
+    if (rankBar) rankBar.style.width = `${progressPercent}%`;
   }
-  function startApp() {
-    if (!selectedProfile) return;
-    STATE.profile = selectedProfile;
-    loadData();
-    document.getElementById('view-onboarding').style.display = 'none';
-    document.getElementById('sidebar').style.display = 'flex';
-    updateProfileUI();
-    navigate('home');
-    initParticles();
-    requestPermissions();
-    showToast('👋 Bine ai venit! Profilul activat.', 'var(--green)');
-  }
-  function updateProfileUI() {
-    const p = {
-      deaf: '🤟 Surd / AV',
-      wheelchair: '♿ Scaun Rotile',
-      blind: '👁️ Nevăzător',
-      nd: '🧠 Neurodivergent'
-    }[STATE.profile];
-    document.getElementById('profile-badge').innerHTML = p;
-    const qa = document.getElementById('quick-actions');
-    if (qa) {
-      if (STATE.profile === 'deaf') qa.innerHTML = `<div class="quick-chip" onclick="navigate('deaf')"><span>🤟</span><span>Sign→Voice</span></div><div class="quick-chip" onclick="testAllAlerts()"><span>⚠️</span><span>Alarme</span></div>`;
-      else if (STATE.profile === 'wheelchair') qa.innerHTML = `<div class="quick-chip" onclick="requestInclinePermission()"><span>📐</span><span>Măsoară înclinație</span></div><div class="quick-chip" onclick="navigate('wheelchair')"><span>🗺️</span><span>Hartă</span></div>`;
-      else if (STATE.profile === 'blind') qa.innerHTML = `<div class="quick-chip" onclick="startRealOCR()"><span>📷</span><span>OCR Scan</span></div><div class="quick-chip" onclick="startObjectDetection()"><span>🚧</span><span>Obstacole</span></div>`;
-      else if (STATE.profile === 'nd') qa.innerHTML = `<div class="quick-chip" onclick="requestMicrophone()"><span>🔊</span><span>Zgomot</span></div><div class="quick-chip" onclick="navigate('sensory')"><span>🌿</span><span>Quiet Zone</span></div>`;
-    }
-  }
-  function navigate(view) {
-    if (view === 'scan') return;
-    STATE.view = view;
-    document.querySelectorAll('.nav-btn-wrap').forEach(b => b.classList.remove('active'));
-    document.getElementById(`nav-${view}`)?.classList.add('active');
-    document.querySelectorAll('.view.main, #view-onboarding').forEach(v => v.style.display = 'none');
-    const target = document.getElementById(`view-${view}`);
-    if (target) target.style.display = 'flex';
-    if (view === 'wheelchair') initMap();
-    if (view === 'b2b') updateB2BDashboard();
-    if (view === 'gamification') renderGamification();
-  }
-  function toggleSidebar() {
-    const sb = document.getElementById('sidebar');
-    STATE.sidebarExpanded = !STATE.sidebarExpanded;
-    sb.classList.toggle('expanded', STATE.sidebarExpanded);
-  }
-
-  // ========== PARTICLES ==========
-  function initParticles() {
-    const container = document.getElementById('particles');
-    if (!container) return;
-    container.innerHTML = '';
-    for (let i = 0; i < 20; i++) {
-      const p = document.createElement('div');
-      p.className = 'particle';
-      p.style.left = Math.random() * 100 + '%';
-      p.style.animationDuration = 8 + Math.random() * 12 + 's';
-      p.style.animationDelay = -Math.random() * 15 + 's';
-      p.style.setProperty('--dx', (Math.random() * 100 - 50) + 'px');
-      p.style.opacity = 0.1 + Math.random() * 0.3;
-      p.style.width = p.style.height = 1 + Math.random() * 2 + 'px';
-      p.style.background = `hsl(${Math.random() * 360}, 70%, 60%)`;
-      container.appendChild(p);
-    }
-  }
-
-  // ========== PERMISSIONS ==========
-  async function requestPermissions() {
-    // Request microphone for later use (but not start yet)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (stream) {
-        STATE.mediaStream = stream;
-        setupMicrophone(stream);
-      }
-    } catch (e) { console.log('Microphone permission denied'); }
-    // Request device orientation
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      // iOS requires user gesture
-      document.body.addEventListener('click', () => {
-        DeviceOrientationEvent.requestPermission().then(response => {
-          if (response === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-        }).catch(console.error);
-      }, { once: true });
-    } else {
-      window.addEventListener('deviceorientation', handleOrientation);
-    }
-  }
-
-  // ========== INCLINE REAL ==========
-  function handleOrientation(e) {
-    const incline = Math.round(e.beta || 0);
-    const rampVal = document.getElementById('ramp-val');
-    if (rampVal) rampVal.innerHTML = incline;
-    const status = document.getElementById('ramp-status');
-    if (status) {
-      if (Math.abs(incline) > 8) status.innerHTML = '⚠️ Înclinație > 8° - Atenție!';
-      else status.innerHTML = '✓ Accesibil ADA';
-    }
-  }
-  function requestInclinePermission() {
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      DeviceOrientationEvent.requestPermission().then(response => {
-        if (response === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-      }).catch(console.error);
-    } else {
-      showToast('Senzorul de orientare este deja activ', 'var(--accent)');
-    }
-  }
-  function measureDoorSim() {
-    const width = 70 + Math.floor(Math.random() * 50);
-    document.getElementById('door-val').innerHTML = width;
-    addPoints(10, 'Ușă măsurată');
-  }
-
-  // ========== MAP REAL ==========
-  function initMap() {
-    if (STATE.map) STATE.map.remove();
-    const container = document.getElementById('map-container');
-    if (!container) return;
-    STATE.map = L.map(container).setView([44.4268, 26.1025], 14);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(STATE.map);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(pos => {
-        const latlng = [pos.coords.latitude, pos.coords.longitude];
-        STATE.map.setView(latlng, 16);
-        L.marker(latlng, { title: 'Tu ești aici' }).addTo(STATE.map).bindPopup('Locația ta');
-      });
-    }
-  }
-  function startRealNavigation() {
-    if (!STATE.map) initMap();
-    if (STATE.routingControl) STATE.map.removeControl(STATE.routingControl);
-    navigator.geolocation.getCurrentPosition(pos => {
-      const start = [pos.coords.latitude, pos.coords.longitude];
-      // Destinație: un lift dintr-un mall (coordonate simulate)
-      const dest = [44.4325, 26.1085];
-      STATE.routingControl = L.Routing.control({
-        waypoints: [L.latLng(start[0], start[1]), L.latLng(dest[0], dest[1])],
-        routeWhileDragging: true,
-        createMarker: () => null,
-        show: false
-      }).addTo(STATE.map);
-      STATE.routingControl.on('routesfound', e => {
-        const instructions = e.routes[0].instructions;
-        const navDiv = document.getElementById('nav-instruction');
-        navDiv.style.display = 'block';
-        navDiv.innerHTML = `🧭 Următorul pas: ${instructions[0]?.text || 'Continuați'}`;
-        addPoints(5, 'Navigare pornită');
-      });
-    });
-  }
-
-  // ========== MICROPHONE & SOUND LEVEL ==========
-  async function requestMicrophone() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (STATE.mediaStream) STATE.mediaStream.getTracks().forEach(t => t.stop());
-      STATE.mediaStream = stream;
-      setupMicrophone(stream);
-      showToast('Microfon activat. Se măsoară zgomotul ambiental.', 'var(--green)');
-    } catch (e) { showToast('Nu s-a putut accesa microfonul', 'var(--red)'); }
-  }
-  function setupMicrophone(stream) {
-    if (STATE.audioContext) STATE.audioContext.close();
-    STATE.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = STATE.audioContext.createMediaStreamSource(stream);
-    STATE.micAnalyser = STATE.audioContext.createAnalyser();
-    STATE.micAnalyser.fftSize = 256;
-    source.connect(STATE.micAnalyser);
-    STATE.micData = new Uint8Array(STATE.micAnalyser.frequencyBinCount);
-    if (STATE.dbInterval) clearInterval(STATE.dbInterval);
-    STATE.dbInterval = setInterval(() => {
-      if (!STATE.micAnalyser) return;
-      STATE.micAnalyser.getByteTimeDomainData(STATE.micData);
-      let max = 0;
-      for (let i = 0; i < STATE.micData.length; i++) {
-        let v = (STATE.micData[i] - 128) / 128;
-        max = Math.max(max, Math.abs(v));
-      }
-      let db = Math.floor(20 * Math.log10(max + 0.0001) + 50);
-      db = Math.min(100, Math.max(30, db));
-      const dbEl = document.getElementById('db-reading');
-      if (dbEl) dbEl.innerHTML = db;
-      const fill = document.getElementById('db-fill');
-      fill.style.width = Math.min(db, 100) + '%';
-      fill.style.background = db > 80 ? 'var(--red)' : db > 65 ? 'var(--amber)' : 'var(--green)';
-      const dbLabel = document.getElementById('db-label');
-      dbLabel.innerHTML = db > 80 ? '🔴 Periculos' : db > 65 ? '🟡 Moderat' : '🟢 Calm';
-      if (db > 80) document.getElementById('home-alert')?.classList.add('visible');
-      // Update noise bars
-      const bars = document.getElementById('noise-bars');
-      if (bars) {
-        bars.innerHTML = '';
-        for (let i = 0; i < 20; i++) {
-          const h = Math.max(4, (db / 100) * 60);
-          const bar = document.createElement('div');
-          bar.className = 'noise-bar';
-          bar.style.height = h + 'px';
-          bar.style.background = db > 80 ? '#ff5555' : db > 65 ? '#f5a623' : '#2ee89a';
-          bars.appendChild(bar);
-        }
-      }
-    }, 200);
-  }
-
-  // ========== AMBIENT LIGHT ==========
-  if ('AmbientLightSensor' in window) {
-    STATE.lightSensor = new AmbientLightSensor();
-    STATE.lightSensor.addEventListener('reading', () => {
-      const lux = Math.round(STATE.lightSensor.illuminance);
-      document.getElementById('lux-reading').innerHTML = lux;
-      document.getElementById('lux-fill').style.width = Math.min(lux / 10, 100) + '%';
-      document.getElementById('lux-label').innerHTML = lux > 600 ? 'Prea intens' : lux > 400 ? 'Luminos' : 'Confortabil';
-    });
-    STATE.lightSensor.start();
-  } else {
-    // Simulate light
-    setInterval(() => {
-      const lux = 200 + Math.floor(Math.random() * 300);
-      document.getElementById('lux-reading').innerHTML = lux;
-      document.getElementById('lux-fill').style.width = Math.min(lux / 10, 100) + '%';
-    }, 2000);
-  }
-
-  // ========== OCR REAL ==========
-  async function startRealOCR() {
-    const placeholder = document.getElementById('ocr-placeholder');
-    const scanning = document.getElementById('ocr-scanning');
-    const resultArea = document.getElementById('ocr-result-area');
-    placeholder.style.display = 'none';
-    scanning.style.display = 'block';
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      await video.play();
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL();
-      stream.getTracks().forEach(t => t.stop());
-      const { data: { text } } = await Tesseract.recognize(imageData, 'ron+eng');
-      scanning.style.display = 'none';
-      resultArea.style.display = 'block';
-      document.getElementById('ocr-text-output').innerHTML = text;
-      addPoints(10, 'OCR complet');
-      speakText(text);
-    } catch (e) {
-      scanning.style.display = 'none';
-      placeholder.style.display = 'block';
-      showToast('Eroare OCR: ' + e.message, 'var(--red)');
-    }
-  }
-  function speakOCR() { speakText(document.getElementById('ocr-text-output').innerText); }
-  function resetOCR() {
-    document.getElementById('ocr-placeholder').style.display = 'block';
-    document.getElementById('ocr-result-area').style.display = 'none';
-  }
-
-  // ========== OBJECT DETECTION REAL ==========
-  async function startObjectDetection() {
-    if (!STATE.objectModel) {
-      STATE.objectModel = await cocoSsd.load();
-    }
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('detection-canvas');
-    const ctx = canvas.getContext('2d');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      video.srcObject = stream;
-      await video.play();
-      const detect = async () => {
-        if (!video.videoWidth) return;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const predictions = await STATE.objectModel.detect(video);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const obstaclesDiv = document.getElementById('obstacle-list');
-        obstaclesDiv.innerHTML = '';
-        predictions.forEach(pred => {
-          ctx.strokeStyle = pred.score > 0.7 ? 'var(--red)' : 'var(--amber)';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(pred.bbox[0], pred.bbox[1], pred.bbox[2], pred.bbox[3]);
-          ctx.fillStyle = pred.score > 0.7 ? 'var(--red)' : 'var(--amber)';
-          ctx.fillText(pred.class + ' ' + Math.round(pred.score * 100) + '%', pred.bbox[0], pred.bbox[1] > 10 ? pred.bbox[1] - 5 : 10);
-          obstaclesDiv.innerHTML += `<div class="obstacle-item"><span>${pred.class}</span><span>${Math.round(pred.score * 100)}%</span></div>`;
-        });
-        requestAnimationFrame(detect);
-      };
-      detect();
-      addPoints(5, 'Detectare obiecte activată');
-    } catch (e) { showToast('Eroare cameră: ' + e.message, 'var(--red)'); }
-  }
-
-  // ========== VOICE INPUT ==========
-  function startVoiceInput() {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'ro-RO';
-    recognition.onresult = (event) => {
-      const text = event.results[0][0].transcript;
-      document.getElementById('voice-input-text').innerHTML = '🎤 "' + text + '"';
-      animateAvatar(text);
-      addPoints(5, 'Input vocal procesat');
-    };
-    recognition.start();
-  }
-  function typeForTranslation() {
-    const text = prompt('Introdu text pentru avatar:');
-    if (text) animateAvatar(text);
-  }
-  function animateAvatar(text) {
-    const words = text.split(' ');
-    let idx = 0;
-    const wordEl = document.getElementById('avatar-word-text');
-    if (STATE.avatarInterval) clearInterval(STATE.avatarInterval);
-    STATE.avatarInterval = setInterval(() => {
-      if (idx >= words.length) { clearInterval(STATE.avatarInterval); wordEl.textContent = '—'; return; }
-      wordEl.textContent = words[idx].toUpperCase();
-      idx++;
-    }, 800);
-  }
-
-  // ========== DEAF SIGN TRANSLATION DEMO ==========
-  function toggleSignTranslation() {
-    const signActive = document.getElementById('sign-active');
-    const signPlaceholder = document.getElementById('sign-placeholder');
-    if (signActive.style.display === 'none') {
-      signPlaceholder.style.display = 'none';
-      signActive.style.display = 'block';
-      if (STATE.signInterval) clearInterval(STATE.signInterval);
-      STATE.gestureWords = [];
-      STATE.signInterval = setInterval(() => {
-        const gestures = ['SALUT', 'MULȚUMESC', 'DA', 'NU', 'AJUTOR', 'UNDE'];
-        const word = gestures[Math.floor(Math.random() * gestures.length)];
-        const conf = (0.75 + Math.random() * 0.24).toFixed(2);
-        document.getElementById('current-gesture').innerHTML = word;
-        document.getElementById('gesture-confidence').innerHTML = `Confidență: ${conf}`;
-        if (STATE.gestureWords.length === 0 || STATE.gestureWords[STATE.gestureWords.length-1] !== word) {
-          STATE.gestureWords.push(word);
-          const wordsDiv = document.getElementById('sign-words');
-          wordsDiv.innerHTML += `<span class="word-bubble">${word}</span>`;
-          if (STATE.gestureWords.length >= 4) {
-            const sentence = STATE.gestureWords.join(' ');
-            document.getElementById('sign-sentence-display').innerHTML = sentence;
-            speakText(sentence);
-            STATE.gestureWords = [];
-            wordsDiv.innerHTML = '';
-          }
-        }
-      }, 1200);
-    } else {
-      signPlaceholder.style.display = 'flex';
-      signActive.style.display = 'none';
-      if (STATE.signInterval) clearInterval(STATE.signInterval);
-    }
-  }
-
-  // ========== ALERTS ==========
-  function testAllAlerts() {
-    showToast('🔔 Test alarmă - ecran clipește', 'var(--red)');
-    document.body.style.background = 'rgba(255,0,0,0.2)';
-    setTimeout(() => document.body.style.background = '', 1000);
-  }
-  function dismissAlert() { document.getElementById('home-alert')?.classList.remove('visible'); }
-
-  // ========== SCAN ==========
-  function startScan() {
-    navigate('scan');
-    document.getElementById('view-scan').style.display = 'flex';
-    // Update HUD with real-time data
-    const updateHUD = setInterval(() => {
-      const db = document.getElementById('db-reading')?.innerHTML || '45';
-      const lux = document.getElementById('lux-reading')?.innerHTML || '380';
-      document.getElementById('hud-db').innerHTML = db;
-      document.getElementById('hud-lux').innerHTML = lux;
-    }, 500);
-    STATE.scanInterval = updateHUD;
-  }
-  function closeScan() {
-    if (STATE.scanInterval) clearInterval(STATE.scanInterval);
-    navigate(STATE.view === 'scan' ? 'home' : STATE.view);
-  }
-  function saveReport() { addPoints(15, 'Raport salvat'); closeScan(); }
-
-  // ========== SENSORY ==========
-  function simulateStress() {
-    showToast('💓 Simulare stres - te îndrept spre zonă liniștită', 'var(--red)');
-    navigateToQuiet();
-  }
-  function navigateToQuiet() {
-    showToast('🌿 Navighează spre cea mai apropiată zonă liniștită', 'var(--green)');
-    // In real app, would use geolocation + quiet zones database
-  }
-
-  // ========== HAPTIC NAV ==========
-  const HAPTIC_STEPS = [
-    { dir: '➡️', text: 'Mergi drept 20 de metri' },
-    { dir: '↙️', text: 'Viraj stânga la rampă' },
-    { dir: '⬆️', text: 'Urcă rampa' },
-    { dir: '➡️', text: 'Continuă drept 10 metri' },
-    { dir: '🎯', text: 'Ai ajuns la destinație! Lift ♿' }
-  ];
-  let hapticStep = 0;
-  function startHapticNav() { hapticStep = 0; showNavStep(); }
-  function nextStep() { hapticStep = (hapticStep + 1) % HAPTIC_STEPS.length; showNavStep(); }
-  function showNavStep() {
-    const step = HAPTIC_STEPS[hapticStep];
-    document.getElementById('nav-arrow').innerHTML = step.dir;
-    document.getElementById('haptic-instruction').innerHTML = step.text;
-    speakText(step.text);
-  }
-
-  // ========== B2B DASHBOARD ==========
-  function updateB2BDashboard() {
-    document.getElementById('total-points').innerHTML = STATE.points;
-    document.getElementById('total-reports').innerHTML = STATE.activities.length;
-    // Draw ring
-    const canvas = document.getElementById('esg-ring');
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      const score = 76;
-      ctx.clearRect(0, 0, 140, 140);
-      ctx.beginPath();
-      ctx.arc(70, 70, 58, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-      ctx.lineWidth = 10;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(70, 70, 58, -Math.PI / 2, -Math.PI / 2 + (score / 100) * Math.PI * 2);
-      ctx.strokeStyle = '#2ee89a';
-      ctx.stroke();
-    }
-    const leaderboard = document.getElementById('b2b-leaderboard');
-    leaderboard.innerHTML = '<div class="leader-row"><span>1. Maria C.</span><span>2840 pts</span></div><div class="leader-row"><span>2. Alex D.</span><span>2210 pts</span></div>';
-  }
-  function downloadPDF() { showToast('PDF generat (demo)', 'var(--accent)'); }
-
-  // ========== GAMIFICATION ==========
-  function renderGamification() {
-    document.getElementById('points-total-display').innerHTML = STATE.points;
-    document.getElementById('voucher-equiv').innerHTML = Math.floor(STATE.points * 0.05);
-    renderActivityList();
-    renderVouchers();
-    renderBadges();
-    renderFullLeaderboard();
-  }
-  function renderActivityList() {
-    const list = document.getElementById('activity-list');
-    if (!list) return;
-    list.innerHTML = STATE.activities.map(a => `<div class="activity-item"><span>${a.text}</span><span class="activity-pts">${a.pts}</span><span>${a.time}</span></div>`).join('');
+  function renderActivityFeed() {
+    const feedDiv = document.getElementById("activityFeed");
+    if (feedDiv) feedDiv.innerHTML = appState.activities.slice(0, 8).map(a => `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);"><span>${a.text}</span><span style="color:var(--green)">${a.pts}</span></div>`).join("");
   }
   function renderVouchers() {
-    const vouchers = [
-      { name: 'Kaufland -10%', pts: 500, icon: '🛍️' },
-      { name: 'Starbucks Gratis', pts: 300, icon: '☕' }
-    ];
-    const list = document.getElementById('vouchers-list');
-    list.innerHTML = vouchers.map(v => `<div class="voucher-card" onclick="redeemVoucher('${v.name}', ${v.pts})"><div>${v.icon}</div><div>${v.name}</div><div>${v.pts} pts</div></div>`).join('');
+    const listDiv = document.getElementById("vouchersList");
+    if (!listDiv) return;
+    const vouchers = [{ name: "Café Nero - Băutură gratis", cost: 280, icon: "☕" }, { name: "Magazin Cărturești -10%", cost: 400, icon: "📚" }, { name: "Rapid Bus - Reducere 50%", cost: 150, icon: "🚌" }];
+    listDiv.innerHTML = vouchers.map(v => `<div style="display:flex; justify-content:space-between; align-items:center; background: var(--card-hover); padding:12px; border-radius: 16px; margin-bottom: 8px;"><span>${v.icon} ${v.name}</span><span>${v.cost} pts</span><button class="btn btn-primary btn-sm" onclick="redeemVoucher('${v.name}', ${v.cost})">Răscumpără</button></div>`).join("");
   }
-  function redeemVoucher(name, pts) {
-    if (STATE.points >= pts) {
-      STATE.points -= pts;
-      saveData();
+  window.redeemVoucher = (name, cost) => {
+    if (appState.points >= cost) {
+      appState.points -= cost;
+      saveToLocal();
       updatePointsUI();
-      showToast(`Voucher ${name} activat!`, 'var(--green)');
-    } else showToast('Puncte insuficiente', 'var(--red)');
+      renderVouchers();
+      renderActivityFeed();
+      showToast(`Voucher ${name} activat!`, "#f59e0b");
+    } else showToast("Puncte insuficiente", "#ef4444");
+  };
+  function renderLeaderboard() {
+    const leaderDiv = document.getElementById("leaderboardFull");
+    if (leaderDiv) leaderDiv.innerHTML = `<div style="display:flex; justify-content:space-between;"><span>1. Andreea M.</span><span>3420 pts</span></div><div style="display:flex; justify-content:space-between;"><span>2. Robert I.</span><span>2890 pts</span></div><div style="display:flex; justify-content:space-between;"><span>3. (Tu)</span><span>${appState.points} pts</span></div>`;
+    const b2bLeaders = document.getElementById("b2bLeaders");
+    if (b2bLeaders) b2bLeaders.innerHTML = `<div>🏅 Maria C. - 2840p</div><div>🥈 Alex D. - 2210p</div><div>🥉 ${appState.profile === "wheelchair" ? "Utilizator activ" : "Voluntar"} - ${appState.points}p</div>`;
   }
-  function renderBadges() {
-    const badges = ['🏅 Pioneer', '🗺️ Mapper', '🔊 Sound Scout'];
-    const list = document.getElementById('badges-list');
-    list.innerHTML = badges.map(b => `<div class="badge">${b}</div>`).join('');
-  }
-  function renderFullLeaderboard() {
-    const leaderboard = document.getElementById('full-leaderboard');
-    leaderboard.innerHTML = '<div class="leader-row"><span>1. Maria C.</span><span>2840 pts</span></div><div class="leader-row"><span>2. Alex D.</span><span>2210 pts</span></div>';
+  function updateB2BStats() {
+    document.getElementById("totalReportsCount").innerHTML = appState.activities.length;
+    document.getElementById("esgScoreDisplay").innerHTML = Math.min(98, 65 + Math.floor(appState.points / 50));
   }
 
-  // ========== INIT ==========
-  document.getElementById('sidebar').style.display = 'none';
-  window.addEventListener('load', () => {
-    // Preload Tesseract and TensorFlow in background
-    if (window.Tesseract) console.log('Tesseract loaded');
-    if (window.cocoSsd) cocoSsd.load().then(model => STATE.objectModel = model);
+  // Navigation
+  function switchView(viewId) {
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    document.getElementById(`view-${viewId}`).classList.add("active");
+    document.querySelectorAll(".nav-item").forEach(nav => nav.classList.remove("active"));
+    document.querySelector(`.nav-item[data-view="${viewId}"]`).classList.add("active");
+    if (viewId === "wheelchair") initWheelchairMap();
+    if (viewId === "b2b") updateB2BStats();
+    if (viewId === "gamification") { renderVouchers(); renderActivityFeed(); renderLeaderboard(); }
+    if (viewId === "home") updateQuickActions();
+  }
+
+  // Quick actions home
+  function updateQuickActions() {
+    const container = document.getElementById("quickActions");
+    if (!container) return;
+    if (appState.profile === "deaf") container.innerHTML = `<div class="chip" onclick="switchView('deaf')">🤟 Traducere semne</div><div class="chip" onclick="document.getElementById('testAlertsBtn')?.click()">⚠️ Alarmă vizuală</div>`;
+    else if (appState.profile === "wheelchair") container.innerHTML = `<div class="chip" onclick="switchView('wheelchair')">📐 Măsoară înclinație</div><div class="chip" onclick="switchView('wheelchair')">🗺️ Hartă accesibilă</div>`;
+    else if (appState.profile === "blind") container.innerHTML = `<div class="chip" onclick="document.getElementById('startOcrBtn')?.click()">📷 OCR text</div><div class="chip" onclick="document.getElementById('startDetectBtn')?.click()">🚧 Obstacole</div>`;
+    else if (appState.profile === "nd") container.innerHTML = `<div class="chip" onclick="document.getElementById('enableMicBtn')?.click()">🔊 Măsoară zgomot</div><div class="chip" onclick="document.getElementById('navigateQuietBtn')?.click()">🌿 Zonă liniștită</div>`;
+  }
+
+  // MAP
+  function initWheelchairMap() {
+    if (appState.mapInstance) appState.mapInstance.remove();
+    const mapDiv = document.getElementById("wheelchairMap");
+    if (!mapDiv) return;
+    appState.mapInstance = L.map(mapDiv).setView([44.4268, 26.1025], 14);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution: "&copy; OpenStreetMap" }).addTo(appState.mapInstance);
+    if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(appState.mapInstance).bindPopup("Locația ta").openPopup());
+    document.getElementById("startRouteBtn").onclick = () => {
+      navigator.geolocation.getCurrentPosition(pos => {
+        const start = [pos.coords.latitude, pos.coords.longitude];
+        const dest = [44.4325, 26.1085];
+        if (appState.currentRouteControl) appState.mapInstance.removeControl(appState.currentRouteControl);
+        appState.currentRouteControl = L.Routing.control({ waypoints: [L.latLng(start[0], start[1]), L.latLng(dest[0], dest[1])], routeWhileDragging: true, createMarker: () => null, show: false }).addTo(appState.mapInstance);
+        appState.currentRouteControl.on("routesfound", e => { document.getElementById("routeInstruction").innerHTML = `🧭 ${e.routes[0].instructions[0]?.text || "Îndreptați-vă spre destinație"}`; addPoints(5, "Navigare pornită"); });
+      });
+    };
+  }
+
+  // Orientare
+  let orientationHandler = null;
+  document.getElementById("enableOrientationBtn")?.addEventListener("click", () => {
+    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+      DeviceOrientationEvent.requestPermission().then(() => window.addEventListener("deviceorientation", (e) => { document.getElementById("inclineValue").innerHTML = Math.round(e.beta || 0); document.getElementById("inclineStatus").innerHTML = Math.abs(e.beta) > 8 ? "⚠️ Înclinație mare" : "✅ Accesibil"; }));
+    } else {
+      window.addEventListener("deviceorientation", (e) => { document.getElementById("inclineValue").innerHTML = Math.round(e.beta || 0); });
+      showToast("Senzor activat", "#3b82f6");
+    }
   });
+  document.getElementById("measureDoorBtn")?.addEventListener("click", () => { const w = 70 + Math.floor(Math.random() * 50); document.getElementById("doorWidth").innerHTML = w + " cm"; addPoints(10, "Măsurătoare ușă"); });
+
+  // Microfon + dB
+  async function initMicrophone() {
+    try {
+      if (appState.mediaStream) appState.mediaStream.getTracks().forEach(t => t.stop());
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      appState.mediaStream = stream;
+      if (appState.audioContext) await appState.audioContext.close();
+      appState.audioContext = new AudioContext();
+      const source = appState.audioContext.createMediaStreamSource(stream);
+      const analyser = appState.audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      if (appState.micInterval) clearInterval(appState.micInterval);
+      appState.micInterval = setInterval(() => {
+        analyser.getByteTimeDomainData(dataArray);
+        let max = 0;
+        for (let i = 0; i < dataArray.length; i++) { let v = (dataArray[i] - 128) / 128; max = Math.max(max, Math.abs(v)); }
+        let db = Math.min(100, Math.max(30, Math.floor(20 * Math.log10(max + 0.01) + 55)));
+        document.getElementById("dbValue").innerHTML = db + " dB";
+        document.getElementById("dbProgress").style.width = `${db}%`;
+        document.getElementById("dbProgress").style.background = db > 75 ? "#ef4444" : db > 55 ? "#f59e0b" : "#10b981";
+      }, 200);
+      await appState.audioContext.resume();
+      showToast("Microfon activ, măsoară zgomotul ambiental", "#10b981");
+    } catch (err) { showToast("Eroare microfon: permisiune necesară", "#ef4444"); }
+  }
+  document.getElementById("enableMicBtn")?.addEventListener("click", initMicrophone);
+
+  // Ambient light
+  if ("AmbientLightSensor" in window) {
+    let sensor = new AmbientLightSensor();
+    sensor.addEventListener("reading", () => { document.getElementById("luxValue").innerHTML = Math.round(sensor.illuminance) + " lux"; let pct = Math.min(100, sensor.illuminance / 12); document.getElementById("luxProgress").style.width = `${pct}%`; });
+    sensor.start();
+  } else { setInterval(() => { let lux = 200 + Math.random() * 400; document.getElementById("luxValue").innerHTML = lux + " lux"; document.getElementById("luxProgress").style.width = `${Math.min(100, lux / 10)}%`; }, 3000); }
+
+  // OCR
+  document.getElementById("startOcrBtn")?.addEventListener("click", async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      await video.play();
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+      stream.getTracks().forEach(t => t.stop());
+      const { data: { text } } = await Tesseract.recognize(canvas, "ron+eng");
+      document.getElementById("ocrResult").innerHTML = text || "Niciun text detectat";
+      addPoints(15, "Scanare OCR reușită");
+    } catch (e) { showToast("Eroare cameră/OCR", "#ef4444"); }
+  });
+  document.getElementById("speakOcrBtn")?.addEventListener("click", () => speak(document.getElementById("ocrResult").innerText));
+
+  // Object detection
+  async function startDetection() {
+    if (!appState.model) appState.model = await cocoSsd.load();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      appState.detectionStream = stream;
+      const video = document.getElementById("detectVideo");
+      video.srcObject = stream;
+      await video.play();
+      appState.detectionActive = true;
+      const detectLoop = async () => {
+        if (!appState.detectionActive || !video.videoWidth) return;
+        const predictions = await appState.model.detect(video);
+        const obsDiv = document.getElementById("obstacleList");
+        obsDiv.innerHTML = predictions.slice(0, 4).map(p => `<div>⚠️ ${p.class} (${Math.round(p.score * 100)}%)</div>`).join("");
+        if (predictions.length > 0) speak(`Atenție, ${predictions[0].class}`);
+        requestAnimationFrame(detectLoop);
+      };
+      detectLoop();
+      addPoints(5, "Detectare obstacole activă");
+    } catch (e) { showToast("Eroare cameră", "#ef4444"); }
+  }
+  document.getElementById("startDetectBtn")?.addEventListener("click", startDetection);
+  document.getElementById("stopDetectBtn")?.addEventListener("click", () => { appState.detectionActive = false; if (appState.detectionStream) appState.detectionStream.getTracks().forEach(t => t.stop()); document.getElementById("obstacleList").innerHTML = ""; });
+
+  // Deaf module
+  let signActive = false;
+  document.getElementById("signDemoArea")?.addEventListener("click", () => {
+    if (signActive) { clearInterval(appState.signInterval); signActive = false; document.getElementById("gestureWord").innerHTML = "—"; return; }
+    signActive = true;
+    const gestures = ["SALUT", "MULȚUMESC", "AJUTOR", "DA", "NU", "APĂ", "MÂNCARE"];
+    appState.signInterval = setInterval(() => {
+      let word = gestures[Math.floor(Math.random() * gestures.length)];
+      document.getElementById("gestureWord").innerHTML = word;
+      appState.gestureQueue.push(word);
+      let sentenceDiv = document.getElementById("sentenceBuild");
+      sentenceDiv.innerHTML = appState.gestureQueue.map(w => `<span style="background:var(--purple); padding:4px 12px; border-radius:40px;">${w}</span>`).join(" ");
+      if (appState.gestureQueue.length >= 4) { let full = appState.gestureQueue.join(" "); speak(full); appState.gestureQueue = []; sentenceDiv.innerHTML = ""; addPoints(8, "Semn tradus"); }
+    }, 1500);
+  });
+  document.getElementById("voiceInputBtn")?.addEventListener("click", () => {
+    const recog = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recog.lang = "ro-RO";
+    recog.onresult = (e) => { let text = e.results[0][0].transcript; document.getElementById("spokenText").innerHTML = text; document.getElementById("avatarWord").innerHTML = "🤟 " + text.slice(0, 12); speak(`Ai spus: ${text}`); addPoints(5, "Comandă vocală"); };
+    recog.start();
+  });
+  document.getElementById("typeTextBtn")?.addEventListener("click", () => { let txt = prompt("Scrie text pentru avatar:"); if (txt) { document.getElementById("spokenText").innerHTML = txt; document.getElementById("avatarWord").innerHTML = "🤟 " + txt.slice(0, 14); addPoints(3, "Text tradus în avatar"); } });
+  document.getElementById("testAlertsBtn")?.addEventListener("click", () => { document.body.style.background = "rgba(239,68,68,0.3)"; setTimeout(() => document.body.style.background = "", 800); showToast("⚠️ Alarmă vizuală declanșată!", "#ef4444"); });
+
+  // Haptic navigation
+  document.getElementById("hapticStartBtn")?.addEventListener("click", () => { appState.hapticIndex = 0; updateHapticStep(); });
+  document.getElementById("hapticNextBtn")?.addEventListener("click", () => { appState.hapticIndex = (appState.hapticIndex + 1) % hapticSteps.length; updateHapticStep(); });
+  function updateHapticStep() { let step = hapticSteps[appState.hapticIndex]; document.getElementById("hapticStepText").innerHTML = `${step.dir} ${step.text}`; speak(step.text); }
+
+  // Quiet zone
+  document.getElementById("navigateQuietBtn")?.addEventListener("click", () => { showToast("🌿 Ghidare către zona liniștită (bibliotecă)", "#10b981"); addPoints(10, "Zonă liniștită găsită"); });
+
+  // Global Scan
+  document.getElementById("globalScanBtn")?.addEventListener("click", () => { showToast("🔍 Scanare mediu: 3 obiecte detectate, zgomot moderat. +15 puncte", "#3b82f6"); addPoints(15, "Scanare mediu"); });
+
+  // B2B PDF
+  document.getElementById("downloadPdfBtn")?.addEventListener("click", () => showToast("Raport ESG generat (demo)", "#8b5cf6"));
+
+  // Onboarding
+  let selected = null;
+  document.querySelectorAll("[data-profile]").forEach(el => el.addEventListener("click", function() { selected = this.getAttribute("data-profile"); document.querySelectorAll("[data-profile]").forEach(c => c.style.border = "none"); this.style.border = "2px solid var(--accent)"; document.getElementById("startBtn").disabled = false; }));
+  document.getElementById("startBtn").addEventListener("click", () => { if (selected) { appState.profile = selected; loadLocal(); appState.profile = selected; saveToLocal(); document.getElementById("view-onboarding").classList.remove("active"); document.getElementById("view-home").classList.add("active"); document.getElementById("profileName").innerHTML = selected === "deaf" ? "🤟 Surd" : selected === "wheelchair" ? "♿ Mobilitate" : selected === "blind" ? "👁️ Nevăzător" : "🧠 ND"; updatePointsUI(); updateQuickActions(); showToast(`Bun venit, profilul ${selected} activat!`, "#3b82f6"); } });
+  document.querySelectorAll(".nav-item").forEach(nav => nav.addEventListener("click", () => switchView(nav.getAttribute("data-view"))));
+  document.getElementById("toggleSidebar").addEventListener("click", () => document.getElementById("sidebar").classList.toggle("expanded"));
+  loadLocal();
+  updatePointsUI();
+  if (appState.profile) { document.getElementById("view-onboarding").classList.remove("active"); document.getElementById("view-home").classList.add("active"); document.getElementById("profileName").innerHTML = "Profil activ"; updateQuickActions(); }
+  renderVouchers(); renderActivityFeed(); renderLeaderboard();
+  setInterval(() => { if (document.getElementById("luxValue")) { let lux = 200 + Math.random() * 300; document.getElementById("luxValue").innerHTML = lux + " lux"; document.getElementById("luxProgress").style.width = `${Math.min(100, lux / 10)}%`; } }, 5000);
 </script>
 </body>
-</html> 
+</html>
